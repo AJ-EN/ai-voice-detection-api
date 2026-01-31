@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 import time
 import logging
+import secrets
 
 from app.config import settings
 
@@ -35,7 +36,8 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
                 }
             )
         
-        if api_key != settings.API_KEY:
+        # Use constant-time comparison to prevent timing attacks
+        if not secrets.compare_digest(api_key, settings.API_KEY):
             # Log failed attempt for security monitoring
             logger.warning(f"Invalid API key attempt from {request.client.host if request.client else 'unknown'}")
             return JSONResponse(

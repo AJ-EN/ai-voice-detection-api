@@ -145,19 +145,38 @@ async def detect_voice(request: VoiceDetectionRequest, req: Request):
     - Classifies as AI_GENERATED or HUMAN
     - Returns structured JSON response with explanation
     """
+    import asyncio
+    import uuid
+    
     start_time = time.time()
     client_ip = req.client.host if req.client else "unknown"
+    request_id = str(uuid.uuid4())[:8]  # Short request ID for tracing
     
     try:
-        logger.info(f"Processing request for language: {request.language} from {client_ip}")
+        logger.info(f"[{request_id}] Processing request for language: {request.language} from {client_ip}")
         
-        # Step 1: Process audio (decode base64, resample, normalize)
-        waveform = await audio_processor.process(request.audioBase64)
-        logger.debug(f"Audio processed: {len(waveform)} samples @ {settings.SAMPLE_RATE}Hz")
+        # Step 1: Process audio with 25s timeout (Railway kills at 30s)
+        try:
+            waveform = await asyncio.wait_for(
+                audio_processor.process(request.audioBase64),
+                timeout=25.0
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"[{request_id}] Processing timeout after 25s")
+            raise HTTPException(
+                status_code=504,
+                detail={
+                    "status": "error",
+                    "message": "Processing timeout - audio too long or complex",
+                    "errorCode": "PROCESSING_TIMEOUT"
+                }
+            )
+        
+        logger.debug(f"[{request_id}] Audio processed: {len(waveform)} samples @ {settings.SAMPLE_RATE}Hz")
         
         # Step 2: Extract features
         features = feature_extractor.extract(waveform)
-        logger.debug(f"Features extracted: jitter={features.get('jitter', 0):.4f}, "
+        logger.debug(f"[{request_id}] Features extracted: jitter={features.get('jitter', 0):.4f}, "
                     f"shimmer={features.get('shimmer', 0):.4f}, "
                     f"hnr_db={features.get('hnr_db', 0):.2f}")
         
@@ -179,7 +198,7 @@ async def detect_voice(request: VoiceDetectionRequest, req: Request):
             client_ip=client_ip
         )
         
-        logger.info(f"Classification: {classification}, Confidence: {confidence:.2f}, Time: {processing_time:.2f}s")
+        logger.info(f"[{request_id}] Classification: {classification}, Confidence: {confidence:.2f}, Time: {processing_time:.2f}s")
         
         return VoiceDetectionResponse(
             status="success",
@@ -193,7 +212,7 @@ async def detect_voice(request: VoiceDetectionRequest, req: Request):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Processing error: {e}", exc_info=True)
+        logger.error(f"[{request_id}] Processing error: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail={
