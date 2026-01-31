@@ -29,6 +29,5 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 EXPOSE 8000
 
-# Default command - Railway will override with $PORT
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
-
+# Run using Python so PORT is read from environment
+CMD ["python", "-m", "app.main"]

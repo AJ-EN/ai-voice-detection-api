@@ -206,11 +206,16 @@ async def detect_voice(request: VoiceDetectionRequest, req: Request):
 
 if __name__ == "__main__":
     import uvicorn
+    import os
+    
+    port = int(os.environ.get("PORT", 8000))
+    
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         workers=settings.WORKERS,
         timeout_keep_alive=30,
         log_level=settings.LOG_LEVEL.lower()
     )
+
