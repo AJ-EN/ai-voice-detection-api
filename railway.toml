@@ -1,6 +1,7 @@
 [deploy]
 healthcheckPath = "/health"
 healthcheckTimeout = 300
+startCommand = "python -m app.main"
 
 [build]
 builder = "DOCKERFILE"

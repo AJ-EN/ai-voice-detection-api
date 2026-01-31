@@ -1,3 +1,0 @@
-# Packages for Nixpacks to install (Railway uses this)
-# ffmpeg is needed for audio processing
-pkgs = ["ffmpeg"]
